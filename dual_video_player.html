@@ -281,14 +281,24 @@
         }
 
         .status {
-            text-align: center;
-            margin-top: 20px;
+            margin: 20px 0;
             padding: 15px;
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 10px;
-            font-size: 1.1rem;
-            color: #cbd5e0;
+            border-radius: 8px;
+            font-weight: 500;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
         }
+        
+        .status.error {
+            background: rgba(220, 53, 69, 0.2);
+            border-color: rgba(220, 53, 69, 0.3);
+            color: #fff;
+        }
+        
+
 
         /* Responsivo */
         @media (max-width: 768px) {
@@ -408,11 +418,6 @@
         }
 
         /* Ocultar sugestões e sobreposições do YouTube */
-        .video-frame iframe {
-            pointer-events: auto;
-        }
-
-        /* Tentar ocultar overlays do YouTube (pode não funcionar devido a CORS) */
         .ytp-ce-element,
         .ytp-cards-teaser,
         .ytp-endscreen-content,
@@ -422,16 +427,25 @@
         .ytp-ce-channel,
         .ytp-ce-website,
         .html5-endscreen,
-        .html5-endscreen-content {
+        .html5-endscreen-content,
+        .ytp-pause-overlay,
+        .ytp-scroll-min,
+        .ytp-upnext,
+        .ytp-videowall-still,
+        .ytp-suggestion-set,
+        .ytp-endscreen-next,
+        .ytp-endscreen-previous {
             display: none !important;
             opacity: 0 !important;
             visibility: hidden !important;
         }
+
+
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🎬 Dual Video Player Sincronizado</h1>
+        <h1>🎬 Dual Sinc</h1>
         
         <div class="video-container">
             <div class="video-wrapper">
@@ -516,9 +530,20 @@
         let playersReady = 0;
         let isSeeking = false;
         let progressMonitor = null;
+        let isMobile = false;
+        let ignoreStateChange = false;
+        let playerErrors = { player1: false, player2: false };
+
+        // Detectar se é mobile
+        function detectMobile() {
+            const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+            isMobile = /android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase()) || 
+                      window.innerWidth <= 768;
+        }
 
         // Carregar API do YouTube
         function loadYouTubeAPI() {
+            detectMobile();
             const tag = document.createElement('script');
             tag.src = 'https://www.youtube.com/iframe_api';
             const firstScriptTag = document.getElementsByTagName('script')[0];
@@ -533,78 +558,122 @@
 
         // Inicializar players
         function initializePlayers() {
-            players.player1 = new YT.Player('player1', {
-                videoId: VIDEO_IDS.video1,
-                playerVars: {
-                    controls: 0,
-                    modestbranding: 1,
-                    rel: 0,
-                    showinfo: 0,
-                    fs: 1,
-                    autoplay: 0,
-                    iv_load_policy: 3,
-                    cc_load_policy: 0,
-                    disablekb: 1,
-                    enablejsapi: 1,
-                    origin: window.location.origin,
-                    widget_referrer: window.location.origin
-                },
-                events: {
-                    onReady: onPlayerReady,
-                    onStateChange: onPlayerStateChange
-                }
-            });
+            // Parâmetros simples que funcionam
+            const playerVars = {
+                autoplay: 0,
+                controls: 0,
+                disablekb: 1,
+                enablejsapi: 1,
+                modestbranding: 1,
+                rel: 0,
+                showinfo: 0,
+                iv_load_policy: 3,
+                cc_load_policy: 0,
+                fs: 1,
+                origin: window.location.origin
+            };
 
-            players.player2 = new YT.Player('player2', {
-                videoId: VIDEO_IDS.video2,
-                playerVars: {
-                    controls: 0,
-                    modestbranding: 1,
-                    rel: 0,
-                    showinfo: 0,
-                    fs: 1,
-                    autoplay: 0,
-                    iv_load_policy: 3,
-                    cc_load_policy: 0,
-                    disablekb: 1,
-                    enablejsapi: 1,
-                    origin: window.location.origin,
-                    widget_referrer: window.location.origin
-                },
-                events: {
-                    onReady: onPlayerReady,
-                    onStateChange: onPlayerStateChange
-                }
-            });
+            try {
+                players.player1 = new YT.Player('player1', {
+                    videoId: VIDEO_IDS.video1,
+                    playerVars: playerVars,
+                    events: {
+                        onReady: onPlayerReady,
+                        onStateChange: onPlayerStateChange,
+                        onError: onPlayerError
+                    }
+                });
+
+                players.player2 = new YT.Player('player2', {
+                    videoId: VIDEO_IDS.video2,
+                    playerVars: playerVars,
+                    events: {
+                        onReady: onPlayerReady,
+                        onStateChange: onPlayerStateChange,
+                        onError: onPlayerError
+                    }
+                });
+            } catch (error) {
+                updateStatus('❌ Erro ao criar players: ' + error.message, 'error');
+            }
+        }
+
+        // Manipulação de erros dos players
+        function onPlayerError(event) {
+            const playerId = event.target.h.id;
+            const errorCode = event.data;
+            let errorMessage = '';
+            
+            // Códigos de erro específicos do YouTube
+            switch(errorCode) {
+                case 2:
+                    errorMessage = 'ID do vídeo inválido';
+                    break;
+                case 5:
+                    errorMessage = 'Erro do player HTML5';
+                    break;
+                case 100:
+                    errorMessage = 'Vídeo não encontrado ou removido';
+                    break;
+                case 101:
+                    errorMessage = 'Embedding bloqueado pelo proprietário';
+                    showEmbeddingRestrictedMessage(playerId);
+                    return;
+                case 150:
+                    errorMessage = 'Embedding não permitido';
+                    showEmbeddingRestrictedMessage(playerId);
+                    return;
+                default:
+                    errorMessage = `Erro desconhecido (${errorCode})`;
+            }
+            
+            console.error(`[ERROR] ${playerId}: ${errorMessage}`);
+            playerErrors[playerId] = true;
+            updateStatus(`❌ Erro ${playerId}: ${errorMessage}`, 'error');
+        }
+        
+        // Mostrar mensagem específica para restrições de embedding
+        function showEmbeddingRestrictedMessage(playerId) {
+            const videoId = playerId === 'player1' ? VIDEO_IDS.video1 : VIDEO_IDS.video2;
+            const videoNumber = playerId === 'player1' ? '1' : '2';
+            const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
+            
+            updateStatus(`❌ Vídeo ${videoNumber} (${videoId}) tem restrições de embedding. <a href="${youtubeUrl}" target="_blank">Assistir no YouTube</a>`, 'error');
         }
 
         // Player pronto
         function onPlayerReady(event) {
             playersReady++;
-            updateStatus(`Player ${playersReady}/2 pronto`);
+            const playerId = event.target.h.id;
+            console.log(`[READY] ${playerId} está pronto`);
             
             if (playersReady === 2) {
-                updateStatus('✅ Ambos os players estão prontos! Use os controles para sincronizar.');
+                updateStatus('✅ Players carregados! Use os controles para sincronizar os vídeos.');
                 setupControls();
                 
-                // Definir volumes iniciais
-                players.player1.setVolume(50);
-                players.player2.setVolume(50);
+                // Configurar volumes iniciais
+                try {
+                    players.player1.setVolume(50);
+                    players.player2.setVolume(50);
+                } catch (error) {
+                    console.warn('Erro ao definir volume inicial:', error);
+                }
                 
-                // Pausar ambos inicialmente
-                players.player1.pauseVideo();
-                players.player2.pauseVideo();
+                // Mobile: aguardar um pouco mais para garantir estabilidade
+                if (isMobile) {
+                    setTimeout(() => {
+                        updateStatus('📱 Modo Mobile: Use apenas os controles personalizados para melhor sincronização.');
+                    }, 1000);
+                }
             }
         }
-
+        
         // Mudança de estado do player
         function onPlayerStateChange(event) {
             // Não fazer nada se estamos sincronizando
-            if (isSeeking) return;
+            if (isSeeking || ignoreStateChange) return;
             
-            const playerNum = event.target.getIframe().id === 'player1' ? 1 : 2;
             const state = event.data;
-            const player = event.target;
             
             // YT.PlayerState: UNSTARTED (-1), ENDED (0), PLAYING (1), PAUSED (2), BUFFERING (3), CUED (5)
             if (state === YT.PlayerState.PLAYING) {
@@ -613,10 +682,8 @@
                     document.body.classList.add('playing');
                     document.getElementById('playPause').innerHTML = '⏸️ Pause';
                     updateStatus('▶️ Reproduzindo...');
+                    startProgressMonitoring();
                 }
-                
-                // Monitorar progresso para evitar sugestões no final
-                startProgressMonitoring();
                 
             } else if (state === YT.PlayerState.PAUSED) {
                 if (isPlaying) {
@@ -624,12 +691,10 @@
                     document.body.classList.remove('playing');
                     document.getElementById('playPause').innerHTML = '▶️ Play';
                     updateStatus('⏸️ Pausado');
+                    stopProgressMonitoring();
                 }
                 
-                stopProgressMonitoring();
-                
             } else if (state === YT.PlayerState.ENDED) {
-                // Evitar sugestões pausando antes do final
                 isPlaying = false;
                 document.body.classList.remove('playing');
                 document.getElementById('playPause').innerHTML = '▶️ Play';
@@ -669,18 +734,20 @@
             
             try {
                 if (isPlaying) {
+                    // Pausar ambos
                     players.player1.pauseVideo();
                     players.player2.pauseVideo();
                 } else {
                     // Sincronizar antes de dar play
                     syncPlayers();
+                    
                     setTimeout(() => {
                         players.player1.playVideo();
                         players.player2.playVideo();
                     }, 100);
                 }
             } catch (error) {
-                updateStatus('❌ Erro ao controlar reprodução: ' + error.message);
+                updateStatus('❌ Erro ao controlar reprodução: ' + error.message, 'error');
             }
         }
 
@@ -701,9 +768,10 @@
                 
                 updateStatus(`⏩ ${seconds > 0 ? 'Avançou' : 'Voltou'} ${Math.abs(seconds)} segundos`);
                 
+                // Para mobile, aguardar mais tempo para o seek completar
                 setTimeout(() => {
                     isSeeking = false;
-                }, 500);
+                }, isMobile ? 800 : 500);
             } catch (error) {
                 updateStatus('❌ Erro ao navegar: ' + error.message);
                 isSeeking = false;
@@ -836,27 +904,39 @@
             try {
                 isSeeking = true;
                 
-                players.player1.seekTo(0, true);
-                players.player2.seekTo(0, true);
-                
-                // Pausar ambos os vídeos
+                // Primeiro pausar
                 players.player1.pauseVideo();
                 players.player2.pauseVideo();
                 
-                updateStatus('🔄 Vídeos resetados para o início');
-                
                 setTimeout(() => {
-                    isSeeking = false;
-                }, 500);
+                    players.player1.seekTo(0, true);
+                    players.player2.seekTo(0, true);
+                    
+                    updateStatus('🔄 Vídeos resetados - Prontos para reproduzir');
+                    
+                    setTimeout(() => {
+                        isSeeking = false;
+                    }, 300);
+                }, 200);
+                
             } catch (error) {
-                updateStatus('❌ Erro ao resetar vídeos: ' + error.message);
+                updateStatus('❌ Erro ao resetar vídeos: ' + error.message, 'error');
                 isSeeking = false;
             }
         }
 
         // Atualizar status
-        function updateStatus(message) {
-            document.getElementById('status').textContent = message;
+        function updateStatus(message, type = 'normal') {
+            const statusElement = document.getElementById('status');
+            statusElement.innerHTML = message;
+            
+            // Remover classes anteriores
+            statusElement.className = 'status';
+            
+            // Adicionar classe baseada no tipo
+            if (type && type !== 'normal') {
+                statusElement.classList.add(type);
+            }
         }
 
         // Monitorar progresso dos vídeos para evitar sugestões
@@ -867,27 +947,35 @@
                 if (playersReady < 2 || !isPlaying) return;
                 
                 try {
-                    // Verificar se algum vídeo está perto do final (últimos 5 segundos)
+                    // Verificar se algum vídeo está perto do final (últimos 8 segundos - mais agressivo)
                     const player1Duration = players.player1.getDuration();
                     const player1Current = players.player1.getCurrentTime();
                     const player2Duration = players.player2.getDuration();
                     const player2Current = players.player2.getCurrentTime();
                     
-                    const threshold = 5; // segundos antes do final
+                    const threshold = 8; // segundos antes do final (aumentado de 5 para 8)
                     
                     if ((player1Duration - player1Current) <= threshold || 
                         (player2Duration - player2Current) <= threshold) {
                         
-                        // Pausar ambos os vídeos antes das sugestões aparecerem
+                        // Pausar ambos os vídeos ANTES das sugestões aparecerem
                         players.player1.pauseVideo();
                         players.player2.pauseVideo();
                         
-                        updateStatus('⏸️ Pausado automaticamente perto do final para evitar sugestões');
+                        // Forçar pausa manual no mobile
+                        if (isMobile) {
+                            isPlaying = false;
+                            document.body.classList.remove('playing');
+                            document.getElementById('playPause').innerHTML = '▶️ Play';
+                        }
+                        
+                        updateStatus('⏸️ Pausado automaticamente antes do final para evitar sugestões - Use Reset para reiniciar');
+                        stopProgressMonitoring();
                     }
                 } catch (error) {
                     // Ignorar erros de monitoramento
                 }
-            }, 1000); // Verificar a cada segundo
+            }, 500); // Verificar a cada 500ms (mais frequente)
         }
 
         function stopProgressMonitoring() {
@@ -939,7 +1027,11 @@
         // Adicionar dicas de teclado ao status inicial
         setTimeout(() => {
             if (playersReady === 2) {
-                updateStatus('💡 Dicas: Espaço = Play/Pause | ← → = Navegar | 1/2 = Mutar | S = Switch | R = Reset');
+                if (isMobile) {
+                    updateStatus('📱 Mobile: Use os botões - se não funcionar, toque nos vídeos diretamente');
+                } else {
+                    updateStatus('💡 Dicas: Espaço = Play/Pause | ← → = Navegar | 1/2 = Mutar | S = Switch | R = Reset');
+                }
             }
         }, 3000);
     </script>
