@@ -482,7 +482,26 @@
         .ytp-upnext,
         .videowall-endscreen,
         .videowall-endscreen-post-content,
-        .videowall-endscreen-new-content {
+        .videowall-endscreen-new-content,
+        .ytp-button.ytp-collapse,
+        .ytp-button.ytp-expand,
+        .ytp-more-videos-view,
+        .ytp-related-title,
+        .ytp-suggestions,
+        .ytp-suggestion-link,
+        .ytp-suggestion-image,
+        .ytp-suggestion-overlay,
+        .ytp-suggestion-title,
+        .ytp-suggestion-author,
+        .ytp-suggestion-duration,
+        .ytp-button.ytp-previous,
+        .ytp-button.ytp-next,
+        .ytp-collapse-icon,
+        button[aria-label*="Ocultar mais vídeos"],
+        button[aria-label*="Mostrar vídeos sugeridos"],
+        button[aria-label*="Mostrar mais vídeos"],
+        h2.ytp-related-title,
+        div[data-layer="4"] {
             display: none !important;
             opacity: 0 !important;
             visibility: hidden !important;
@@ -1067,14 +1086,36 @@
                 '.ytp-show-cards-title',
                 '.ytp-ce-video',
                 '.ytp-pause-overlay',
+                '.ytp-pause-overlay-container',
+                '.ytp-pause-overlay-round-corners',
                 '.ytp-upnext',
                 '.ytp-videowall-still',
                 '.ytp-suggestion-set',
                 '.html5-endscreen',
                 '.ytp-autonav-endscreen-upnext-container',
                 '.videowall-endscreen',
+                '.ytp-button.ytp-collapse',
+                '.ytp-button.ytp-expand',
+                '.ytp-more-videos-view',
+                '.ytp-related-title',
+                '.ytp-suggestions',
+                '.ytp-suggestion-link',
+                '.ytp-suggestion-image',
+                '.ytp-suggestion-overlay',
+                '.ytp-suggestion-title',
+                '.ytp-suggestion-author',
+                '.ytp-suggestion-duration',
+                '.ytp-button.ytp-previous',
+                '.ytp-button.ytp-next',
+                '.ytp-collapse-icon',
                 '[aria-label*="More videos"]',
-                '[title*="More videos"]'
+                '[title*="More videos"]',
+                '[aria-label*="Ocultar mais vídeos"]',
+                '[aria-label*="Mostrar vídeos sugeridos"]',
+                '[aria-label*="Mostrar mais vídeos"]',
+                'h2.ytp-related-title',
+                'div[data-layer="4"]',
+                'button:contains("Mais vídeos")'
             ];
 
             // Remover elementos de ambos os players
@@ -1094,10 +1135,27 @@
                                 el.style.display = 'none !important';
                                 el.style.visibility = 'hidden !important';
                                 el.style.opacity = '0 !important';
+                                el.style.width = '0px !important';
+                                el.style.height = '0px !important';
+                                el.style.position = 'absolute !important';
+                                el.style.top = '-9999px !important';
+                                el.style.left = '-9999px !important';
+                                el.style.zIndex = '-9999 !important';
+                                el.style.pointerEvents = 'none !important';
                                 el.remove();
                             }
                         });
                     });
+                    
+                    // Remover também por texto do botão
+                    const buttons = iframeDoc.querySelectorAll('button');
+                    buttons.forEach(btn => {
+                        if (btn.textContent && btn.textContent.includes('Mais vídeos')) {
+                            btn.style.display = 'none !important';
+                            btn.remove();
+                        }
+                    });
+                    
                 } catch (error) {
                     // Ignorar erros de acesso cross-origin
                 }
@@ -1106,6 +1164,67 @@
 
         // Executar remoção de sugestões periodicamente
         setInterval(removeSuggestions, 1000);
+
+        // Função para bloquear eventos que ativam sugestões
+        function blockSuggestionEvents() {
+            [players.player1, players.player2].forEach((player, index) => {
+                if (!player || !player.getIframe) return;
+                
+                try {
+                    const iframe = player.getIframe();
+                    if (!iframe) return;
+                    
+                    // Interceptar eventos de clique no iframe
+                    iframe.addEventListener('click', function(e) {
+                        // Verificar se o clique foi em elementos de sugestão
+                        const target = e.target;
+                        const classList = target.classList ? Array.from(target.classList) : [];
+                        const ariaLabel = target.getAttribute('aria-label') || '';
+                        const textContent = target.textContent || '';
+                        
+                        // Lista de classes e textos que indicam sugestões
+                        const suggestionIndicators = [
+                            'ytp-suggestion',
+                            'ytp-pause-overlay',
+                            'ytp-more-videos',
+                            'ytp-collapse',
+                            'ytp-expand',
+                            'ytp-related'
+                        ];
+                        
+                        const suggestionTexts = [
+                            'Mais vídeos',
+                            'More videos',
+                            'Ocultar mais vídeos',
+                            'Mostrar vídeos'
+                        ];
+                        
+                        // Verificar se é um elemento de sugestão
+                        const isSuggestionElement = 
+                            suggestionIndicators.some(indicator => 
+                                classList.some(cls => cls.includes(indicator))
+                            ) ||
+                            suggestionTexts.some(text => 
+                                ariaLabel.includes(text) || textContent.includes(text)
+                            );
+                        
+                        if (isSuggestionElement) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            e.stopImmediatePropagation();
+                            console.log('Bloqueado clique em elemento de sugestão');
+                            return false;
+                        }
+                    }, true);
+                    
+                } catch (error) {
+                    // Ignorar erros de acesso cross-origin
+                }
+            });
+        }
+
+        // Executar bloqueio de eventos após players carregarem
+        setTimeout(blockSuggestionEvents, 3000);
 
         // Inicializar
         loadYouTubeAPI();
