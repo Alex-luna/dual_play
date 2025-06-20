@@ -418,6 +418,11 @@
         }
 
         /* Ocultar sugestões e sobreposições do YouTube */
+        .video-frame iframe {
+            pointer-events: auto;
+        }
+
+        /* Tentar ocultar overlays do YouTube (pode não funcionar devido a CORS) */
         .ytp-ce-element,
         .ytp-cards-teaser,
         .ytp-endscreen-content,
@@ -427,109 +432,9 @@
         .ytp-ce-channel,
         .ytp-ce-website,
         .html5-endscreen,
-        .html5-endscreen-content,
-        .ytp-pause-overlay,
-        .ytp-scroll-min,
-        .ytp-upnext,
-        .ytp-videowall-still,
-        .ytp-suggestion-set,
-        .ytp-endscreen-next,
-        .ytp-endscreen-previous,
-        .ytp-cards-button,
-        .ytp-cards-button-icon,
-        .ytp-ce-covering-overlay,
-        .ytp-ce-covering-image,
-        .ytp-ce-expandable-video-title,
-        .ytp-ce-video-title,
-        .ytp-ce-channel-title,
-        .ytp-watermark,
-        .ytp-chrome-top-buttons,
-        .ytp-watch-later-button,
-        .ytp-watch-later,
-        .ytp-share-button,
-        .ytp-youtube-button,
-        .ytp-cards-teaser-text,
-        .iv-click-target,
-        .iv-drawer,
-        .annotation,
-        .annotation-popup,
-        .annotation-close-button,
-        .ytp-ce-element-show,
-        .ytp-ce-size-1280,
-        .ytp-ce-top-left-quad,
-        .ytp-ce-large-round,
-        .ytp-ce-medium-round,
-        .ytp-ce-small-round,
-        .ytp-ce-element-shadow,
-        .ytp-ce-expanding-overlay-background,
-        .ytp-ce-expanding-overlay,
-        .ytp-ce-element-hover,
-        .ytp-ce-expanding-image,
-        .ytp-ce-expanding-text,
-        .ytp-pause-overlay-container,
-        .ytp-related-on-error-overlay,
-        .ytp-autonav-endscreen-upnext-container,
-        .ytp-autonav-endscreen-upnext-header,
-        .ytp-autonav-endscreen-upnext-alternative-header,
-        .ytp-autonav-endscreen-upnext-alternative-button,
-        .ytp-autonav-endscreen-upnext-thumbnail,
-        .ytp-autonav-endscreen-upnext-title,
-        .ytp-autonav-endscreen-upnext-author,
-        .ytp-autonav-endscreen-upnext-duration,
-        .ytp-autonav-endscreen-upnext-button-container,
-        .ytp-autonav-endscreen-upnext-button,
-        .ytp-autonav-endscreen-upnext-cancel-button,
-        .ytp-upnext,
-        .videowall-endscreen,
-        .videowall-endscreen-post-content,
-        .videowall-endscreen-new-content,
-        .ytp-button.ytp-collapse,
-        .ytp-button.ytp-expand,
-        .ytp-more-videos-view,
-        .ytp-related-title,
-        .ytp-suggestions,
-        .ytp-suggestion-link,
-        .ytp-suggestion-image,
-        .ytp-suggestion-overlay,
-        .ytp-suggestion-title,
-        .ytp-suggestion-author,
-        .ytp-suggestion-duration,
-        .ytp-button.ytp-previous,
-        .ytp-button.ytp-next,
-        .ytp-collapse-icon,
-        button[aria-label*="Ocultar mais vídeos"],
-        button[aria-label*="Mostrar vídeos sugeridos"],
-        button[aria-label*="Mostrar mais vídeos"],
-        h2.ytp-related-title,
-        div[data-layer="4"] {
+        .html5-endscreen-content {
             display: none !important;
             opacity: 0 !important;
-            visibility: hidden !important;
-            width: 0 !important;
-            height: 0 !important;
-            position: absolute !important;
-            top: -9999px !important;
-            left: -9999px !important;
-            z-index: -9999 !important;
-            pointer-events: none !important;
-        }
-
-        /* Bloquear overlays por seletor mais específico */
-        iframe[src*="youtube.com"] .ytp-ce-element,
-        iframe[src*="youtube.com"] .ytp-cards-teaser,
-        iframe[src*="youtube.com"] .ytp-endscreen-content,
-        iframe[src*="youtube.com"] .html5-endscreen {
-            display: none !important;
-        }
-
-        /* Ocultar qualquer elemento com 'more videos' ou similar */
-        *[aria-label*="More videos"],
-        *[title*="More videos"],
-        *[alt*="More videos"],
-        *[data-title*="More videos"],
-        .ytp-ce-element[aria-label*="video"],
-        .ytp-ce-element[title*="video"] {
-            display: none !important;
             visibility: hidden !important;
         }
 
@@ -650,26 +555,20 @@
 
         // Inicializar players
         function initializePlayers() {
-            // Parâmetros otimizados para bloquear sugestões
+            // Parâmetros simples que funcionavam antes
             const playerVars = {
-                autoplay: 0,
                 controls: 0,
+                modestbranding: 1,
+                rel: 0,
+                showinfo: 0,
+                fs: 1,
+                autoplay: 0,
+                iv_load_policy: 3,
+                cc_load_policy: 0,
                 disablekb: 1,
                 enablejsapi: 1,
-                modestbranding: 1,
-                rel: 0, // Não mostrar vídeos relacionados
-                showinfo: 0,
-                iv_load_policy: 3, // Não carregar anotações
-                cc_load_policy: 0, // Não mostrar legendas por padrão
-                fs: 1,
                 origin: window.location.origin,
-                // Parâmetros adicionais para bloquear sugestões
-                autohide: 1, // Ocultar controles automaticamente
-                theme: 'dark',
-                color: 'white',
-                hl: 'pt', // Idioma português
-                cc_lang_pref: 'pt', // Preferência de idioma para legendas
-                widget_referrer: window.location.href
+                widget_referrer: window.location.origin
             };
 
             try {
@@ -1046,13 +945,13 @@
                 if (playersReady < 2 || !isPlaying) return;
                 
                 try {
-                    // Verificar se algum vídeo está perto do final (últimos 10 segundos - muito agressivo)
+                    // Verificar se algum vídeo está perto do final (últimos 5 segundos)
                     const player1Duration = players.player1.getDuration();
                     const player1Current = players.player1.getCurrentTime();
                     const player2Duration = players.player2.getDuration();
                     const player2Current = players.player2.getCurrentTime();
                     
-                    const threshold = 10; // segundos antes do final (aumentado para 10)
+                    const threshold = 5; // segundos antes do final
                     
                     if ((player1Duration - player1Current) <= threshold || 
                         (player2Duration - player2Current) <= threshold) {
@@ -1067,7 +966,7 @@
                 } catch (error) {
                     // Ignorar erros de monitoramento
                 }
-            }, 250); // Verificar a cada 250ms (mais frequente ainda)
+            }, 1000); // Verificar a cada 1 segundo
         }
 
         function stopProgressMonitoring() {
@@ -1077,154 +976,7 @@
             }
         }
 
-        // Função para remover sugestões dinamicamente
-        function removeSuggestions() {
-            const suggestionsSelectors = [
-                '.ytp-ce-element',
-                '.ytp-cards-teaser',
-                '.ytp-endscreen-content',
-                '.ytp-show-cards-title',
-                '.ytp-ce-video',
-                '.ytp-pause-overlay',
-                '.ytp-pause-overlay-container',
-                '.ytp-pause-overlay-round-corners',
-                '.ytp-upnext',
-                '.ytp-videowall-still',
-                '.ytp-suggestion-set',
-                '.html5-endscreen',
-                '.ytp-autonav-endscreen-upnext-container',
-                '.videowall-endscreen',
-                '.ytp-button.ytp-collapse',
-                '.ytp-button.ytp-expand',
-                '.ytp-more-videos-view',
-                '.ytp-related-title',
-                '.ytp-suggestions',
-                '.ytp-suggestion-link',
-                '.ytp-suggestion-image',
-                '.ytp-suggestion-overlay',
-                '.ytp-suggestion-title',
-                '.ytp-suggestion-author',
-                '.ytp-suggestion-duration',
-                '.ytp-button.ytp-previous',
-                '.ytp-button.ytp-next',
-                '.ytp-collapse-icon',
-                '[aria-label*="More videos"]',
-                '[title*="More videos"]',
-                '[aria-label*="Ocultar mais vídeos"]',
-                '[aria-label*="Mostrar vídeos sugeridos"]',
-                '[aria-label*="Mostrar mais vídeos"]',
-                'h2.ytp-related-title',
-                'div[data-layer="4"]',
-                'button:contains("Mais vídeos")'
-            ];
 
-            // Remover elementos de ambos os players
-            [players.player1, players.player2].forEach((player, index) => {
-                if (!player || !player.getIframe) return;
-                
-                try {
-                    const iframe = player.getIframe();
-                    if (!iframe || !iframe.contentDocument) return;
-                    
-                    const iframeDoc = iframe.contentDocument;
-                    
-                    suggestionsSelectors.forEach(selector => {
-                        const elements = iframeDoc.querySelectorAll(selector);
-                        elements.forEach(el => {
-                            if (el) {
-                                el.style.display = 'none !important';
-                                el.style.visibility = 'hidden !important';
-                                el.style.opacity = '0 !important';
-                                el.style.width = '0px !important';
-                                el.style.height = '0px !important';
-                                el.style.position = 'absolute !important';
-                                el.style.top = '-9999px !important';
-                                el.style.left = '-9999px !important';
-                                el.style.zIndex = '-9999 !important';
-                                el.style.pointerEvents = 'none !important';
-                                el.remove();
-                            }
-                        });
-                    });
-                    
-                    // Remover também por texto do botão
-                    const buttons = iframeDoc.querySelectorAll('button');
-                    buttons.forEach(btn => {
-                        if (btn.textContent && btn.textContent.includes('Mais vídeos')) {
-                            btn.style.display = 'none !important';
-                            btn.remove();
-                        }
-                    });
-                    
-                } catch (error) {
-                    // Ignorar erros de acesso cross-origin
-                }
-            });
-        }
-
-        // Executar remoção de sugestões periodicamente
-        setInterval(removeSuggestions, 1000);
-
-        // Função para bloquear eventos que ativam sugestões
-        function blockSuggestionEvents() {
-            [players.player1, players.player2].forEach((player, index) => {
-                if (!player || !player.getIframe) return;
-                
-                try {
-                    const iframe = player.getIframe();
-                    if (!iframe) return;
-                    
-                    // Interceptar eventos de clique no iframe
-                    iframe.addEventListener('click', function(e) {
-                        // Verificar se o clique foi em elementos de sugestão
-                        const target = e.target;
-                        const classList = target.classList ? Array.from(target.classList) : [];
-                        const ariaLabel = target.getAttribute('aria-label') || '';
-                        const textContent = target.textContent || '';
-                        
-                        // Lista de classes e textos que indicam sugestões
-                        const suggestionIndicators = [
-                            'ytp-suggestion',
-                            'ytp-pause-overlay',
-                            'ytp-more-videos',
-                            'ytp-collapse',
-                            'ytp-expand',
-                            'ytp-related'
-                        ];
-                        
-                        const suggestionTexts = [
-                            'Mais vídeos',
-                            'More videos',
-                            'Ocultar mais vídeos',
-                            'Mostrar vídeos'
-                        ];
-                        
-                        // Verificar se é um elemento de sugestão
-                        const isSuggestionElement = 
-                            suggestionIndicators.some(indicator => 
-                                classList.some(cls => cls.includes(indicator))
-                            ) ||
-                            suggestionTexts.some(text => 
-                                ariaLabel.includes(text) || textContent.includes(text)
-                            );
-                        
-                        if (isSuggestionElement) {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            e.stopImmediatePropagation();
-                            console.log('Bloqueado clique em elemento de sugestão');
-                            return false;
-                        }
-                    }, true);
-                    
-                } catch (error) {
-                    // Ignorar erros de acesso cross-origin
-                }
-            });
-        }
-
-        // Executar bloqueio de eventos após players carregarem
-        setTimeout(blockSuggestionEvents, 3000);
 
         // Inicializar
         loadYouTubeAPI();
