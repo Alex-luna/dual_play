@@ -108,6 +108,86 @@
             flex-wrap: wrap;
         }
 
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 8px;
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .special-controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .switch-btn {
+            background: linear-gradient(145deg, #ed8936, #dd6b20);
+            border: none;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            min-width: 50px;
+        }
+
+        .switch-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .reset-btn {
+            background: linear-gradient(145deg, #e53e3e, #c53030);
+            border: none;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            min-width: 50px;
+        }
+
+        .reset-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .volume-mute-btn {
+            background: linear-gradient(145deg, #805ad5, #6b46c1);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            margin-bottom: 10px;
+            width: 100%;
+        }
+
+        .volume-mute-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .volume-mute-btn.muted {
+            background: linear-gradient(145deg, #e53e3e, #c53030);
+        }
+
         .control-btn {
             background: linear-gradient(145deg, #6c7ce7, #5a67d8);
             border: none;
@@ -260,14 +340,35 @@
                 margin-bottom: 20px;
             }
 
+            .special-controls {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .switch-btn, .reset-btn {
+                width: 100%;
+                max-width: 250px;
+                margin: 0 auto;
+            }
+
             .main-controls {
                 flex-direction: column;
                 gap: 8px;
             }
 
+            .control-group {
+                justify-content: center;
+                width: 100%;
+            }
+
             .control-btn {
                 width: 100%;
+                max-width: 120px;
+            }
+
+            .play-btn {
                 max-width: 200px;
+                margin: 0 auto;
             }
         }
 
@@ -332,17 +433,33 @@
         </div>
 
         <div class="controls">
+            <div class="special-controls">
+                <button class="switch-btn" id="switchMute" title="Alternar mute entre vídeos">
+                    🔄 Switch Mute
+                </button>
+                <button class="reset-btn" id="resetVideos" title="Reiniciar vídeos do zero">
+                    🔄 Reset
+                </button>
+            </div>
+
             <div class="main-controls">
-                <button class="control-btn" id="backward">⏪ -10s</button>
+                <div class="control-group">
+                    <button class="control-btn" id="backward">⏪ -10s</button>
+                    <button class="control-btn" id="backward5">⏮️ -5s</button>
+                </div>
+                
                 <button class="control-btn play-btn" id="playPause">▶️ Play</button>
-                <button class="control-btn" id="forward">⏩ +10s</button>
-                <button class="control-btn" id="backward5">⏮️ -5s</button>
-                <button class="control-btn" id="forward5">⏭️ +5s</button>
+                
+                <div class="control-group">
+                    <button class="control-btn" id="forward5">⏭️ +5s</button>
+                    <button class="control-btn" id="forward">⏩ +10s</button>
+                </div>
             </div>
 
             <div class="volume-controls">
                 <div class="volume-group">
                     <h3>🎵 Volume Vídeo 1</h3>
+                    <button class="volume-mute-btn" id="volumeMute1">🔊 Mute/Unmute</button>
                     <div class="volume-control">
                         <input type="range" class="volume-slider" id="volume1" min="0" max="100" value="50">
                         <span class="volume-value" id="volumeValue1">50</span>
@@ -351,6 +468,7 @@
                 
                 <div class="volume-group">
                     <h3>🎵 Volume Vídeo 2</h3>
+                    <button class="volume-mute-btn" id="volumeMute2">🔊 Mute/Unmute</button>
                     <div class="volume-control">
                         <input type="range" class="volume-slider" id="volume2" min="0" max="100" value="50">
                         <span class="volume-value" id="volumeValue2">50</span>
@@ -482,11 +600,18 @@
             document.getElementById('forward5').addEventListener('click', () => seekTime(5));
             document.getElementById('backward5').addEventListener('click', () => seekTime(-5));
             
+            // Novos controles especiais
+            document.getElementById('switchMute').addEventListener('click', switchMute);
+            document.getElementById('resetVideos').addEventListener('click', resetVideos);
+            
             // Controles de volume
             setupVolumeControls();
             
-            // Botões de mute
+            // Botões de mute (overlay)
             setupMuteButtons();
+            
+            // Botões de mute (volume)
+            setupVolumeMuteButtons();
         }
 
         // Play/Pause sincronizado
@@ -572,7 +697,7 @@
             });
         }
 
-        // Configurar botões de mute
+        // Configurar botões de mute (overlay)
         function setupMuteButtons() {
             const mute1 = document.getElementById('mute1');
             const mute2 = document.getElementById('mute2');
@@ -586,24 +711,97 @@
             });
         }
 
+        // Configurar botões de mute (volume)
+        function setupVolumeMuteButtons() {
+            const volumeMute1 = document.getElementById('volumeMute1');
+            const volumeMute2 = document.getElementById('volumeMute2');
+
+            volumeMute1.addEventListener('click', function() {
+                toggleMute(1);
+            });
+
+            volumeMute2.addEventListener('click', function() {
+                toggleMute(2);
+            });
+        }
+
         // Toggle mute
         function toggleMute(playerNum) {
             const player = players[`player${playerNum}`];
             const muteBtn = document.getElementById(`mute${playerNum}`);
+            const volumeMuteBtn = document.getElementById(`volumeMute${playerNum}`);
             const volumeSlider = document.getElementById(`volume${playerNum}`);
             
             if (player.isMuted()) {
                 player.unMute();
                 muteBtn.textContent = '🔊';
                 muteBtn.classList.remove('muted');
+                volumeMuteBtn.textContent = '🔊 Mute/Unmute';
+                volumeMuteBtn.classList.remove('muted');
                 volumeSlider.disabled = false;
                 updateStatus(`🔊 Vídeo ${playerNum} desmutado`);
             } else {
                 player.mute();
                 muteBtn.textContent = '🔇';
                 muteBtn.classList.add('muted');
+                volumeMuteBtn.textContent = '🔇 Mutado';
+                volumeMuteBtn.classList.add('muted');
                 volumeSlider.disabled = true;
                 updateStatus(`🔇 Vídeo ${playerNum} mutado`);
+            }
+        }
+
+        // Switch mute entre vídeos
+        function switchMute() {
+            if (playersReady < 2) return;
+            
+            try {
+                const player1Muted = players.player1.isMuted();
+                const player2Muted = players.player2.isMuted();
+                
+                // Se ambos estão mutados ou ambos desmutados, não fazer nada
+                if (player1Muted === player2Muted) {
+                    updateStatus('⚠️ Ambos os vídeos têm o mesmo estado de mute');
+                    return;
+                }
+                
+                // Inverter o estado de mute
+                if (player1Muted) {
+                    toggleMute(1); // Desmutar vídeo 1
+                    toggleMute(2); // Mutar vídeo 2
+                    updateStatus('🔄 Switch: Vídeo 1 desmutado, Vídeo 2 mutado');
+                } else {
+                    toggleMute(2); // Desmutar vídeo 2
+                    toggleMute(1); // Mutar vídeo 1
+                    updateStatus('🔄 Switch: Vídeo 2 desmutado, Vídeo 1 mutado');
+                }
+            } catch (error) {
+                updateStatus('❌ Erro no switch de mute: ' + error.message);
+            }
+        }
+
+        // Reset vídeos para o início
+        function resetVideos() {
+            if (playersReady < 2) return;
+            
+            try {
+                isSeeking = true;
+                
+                players.player1.seekTo(0, true);
+                players.player2.seekTo(0, true);
+                
+                // Pausar ambos os vídeos
+                players.player1.pauseVideo();
+                players.player2.pauseVideo();
+                
+                updateStatus('🔄 Vídeos resetados para o início');
+                
+                setTimeout(() => {
+                    isSeeking = false;
+                }, 500);
+            } catch (error) {
+                updateStatus('❌ Erro ao resetar vídeos: ' + error.message);
+                isSeeking = false;
             }
         }
 
@@ -640,13 +838,21 @@
                     e.preventDefault();
                     toggleMute(2);
                     break;
+                case 'KeyS':
+                    e.preventDefault();
+                    switchMute();
+                    break;
+                case 'KeyR':
+                    e.preventDefault();
+                    resetVideos();
+                    break;
             }
         });
 
         // Adicionar dicas de teclado ao status inicial
         setTimeout(() => {
             if (playersReady === 2) {
-                updateStatus('💡 Dicas: Espaço = Play/Pause | ← → = Navegar | 1/2 = Mutar vídeos');
+                updateStatus('💡 Dicas: Espaço = Play/Pause | ← → = Navegar | 1/2 = Mutar | S = Switch | R = Reset');
             }
         }, 3000);
     </script>
