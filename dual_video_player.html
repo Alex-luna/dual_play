@@ -406,6 +406,27 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+
+        /* Ocultar sugestões e sobreposições do YouTube */
+        .video-frame iframe {
+            pointer-events: auto;
+        }
+
+        /* Tentar ocultar overlays do YouTube (pode não funcionar devido a CORS) */
+        .ytp-ce-element,
+        .ytp-cards-teaser,
+        .ytp-endscreen-content,
+        .ytp-show-cards-title,
+        .ytp-ce-video,
+        .ytp-ce-playlist,
+        .ytp-ce-channel,
+        .ytp-ce-website,
+        .html5-endscreen,
+        .html5-endscreen-content {
+            display: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
+        }
     </style>
 </head>
 <body>
@@ -494,6 +515,7 @@
         let isPlaying = false;
         let playersReady = 0;
         let isSeeking = false;
+        let progressMonitor = null;
 
         // Carregar API do YouTube
         function loadYouTubeAPI() {
@@ -519,7 +541,13 @@
                     rel: 0,
                     showinfo: 0,
                     fs: 1,
-                    autoplay: 0
+                    autoplay: 0,
+                    iv_load_policy: 3,
+                    cc_load_policy: 0,
+                    disablekb: 1,
+                    enablejsapi: 1,
+                    origin: window.location.origin,
+                    widget_referrer: window.location.origin
                 },
                 events: {
                     onReady: onPlayerReady,
@@ -535,7 +563,13 @@
                     rel: 0,
                     showinfo: 0,
                     fs: 1,
-                    autoplay: 0
+                    autoplay: 0,
+                    iv_load_policy: 3,
+                    cc_load_policy: 0,
+                    disablekb: 1,
+                    enablejsapi: 1,
+                    origin: window.location.origin,
+                    widget_referrer: window.location.origin
                 },
                 events: {
                     onReady: onPlayerReady,
@@ -570,6 +604,7 @@
             
             const playerNum = event.target.getIframe().id === 'player1' ? 1 : 2;
             const state = event.data;
+            const player = event.target;
             
             // YT.PlayerState: UNSTARTED (-1), ENDED (0), PLAYING (1), PAUSED (2), BUFFERING (3), CUED (5)
             if (state === YT.PlayerState.PLAYING) {
@@ -579,6 +614,10 @@
                     document.getElementById('playPause').innerHTML = '⏸️ Pause';
                     updateStatus('▶️ Reproduzindo...');
                 }
+                
+                // Monitorar progresso para evitar sugestões no final
+                startProgressMonitoring();
+                
             } else if (state === YT.PlayerState.PAUSED) {
                 if (isPlaying) {
                     isPlaying = false;
@@ -586,6 +625,16 @@
                     document.getElementById('playPause').innerHTML = '▶️ Play';
                     updateStatus('⏸️ Pausado');
                 }
+                
+                stopProgressMonitoring();
+                
+            } else if (state === YT.PlayerState.ENDED) {
+                // Evitar sugestões pausando antes do final
+                isPlaying = false;
+                document.body.classList.remove('playing');
+                document.getElementById('playPause').innerHTML = '▶️ Play';
+                updateStatus('🔄 Vídeo finalizado - use Reset para reiniciar');
+                stopProgressMonitoring();
             }
         }
 
@@ -808,6 +857,44 @@
         // Atualizar status
         function updateStatus(message) {
             document.getElementById('status').textContent = message;
+        }
+
+        // Monitorar progresso dos vídeos para evitar sugestões
+        function startProgressMonitoring() {
+            if (progressMonitor) return; // Já está monitorando
+            
+            progressMonitor = setInterval(() => {
+                if (playersReady < 2 || !isPlaying) return;
+                
+                try {
+                    // Verificar se algum vídeo está perto do final (últimos 5 segundos)
+                    const player1Duration = players.player1.getDuration();
+                    const player1Current = players.player1.getCurrentTime();
+                    const player2Duration = players.player2.getDuration();
+                    const player2Current = players.player2.getCurrentTime();
+                    
+                    const threshold = 5; // segundos antes do final
+                    
+                    if ((player1Duration - player1Current) <= threshold || 
+                        (player2Duration - player2Current) <= threshold) {
+                        
+                        // Pausar ambos os vídeos antes das sugestões aparecerem
+                        players.player1.pauseVideo();
+                        players.player2.pauseVideo();
+                        
+                        updateStatus('⏸️ Pausado automaticamente perto do final para evitar sugestões');
+                    }
+                } catch (error) {
+                    // Ignorar erros de monitoramento
+                }
+            }, 1000); // Verificar a cada segundo
+        }
+
+        function stopProgressMonitoring() {
+            if (progressMonitor) {
+                clearInterval(progressMonitor);
+                progressMonitor = null;
+            }
         }
 
         // Inicializar
