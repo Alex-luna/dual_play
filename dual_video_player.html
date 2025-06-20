@@ -434,12 +434,85 @@
         .ytp-videowall-still,
         .ytp-suggestion-set,
         .ytp-endscreen-next,
-        .ytp-endscreen-previous {
+        .ytp-endscreen-previous,
+        .ytp-cards-button,
+        .ytp-cards-button-icon,
+        .ytp-ce-covering-overlay,
+        .ytp-ce-covering-image,
+        .ytp-ce-expandable-video-title,
+        .ytp-ce-video-title,
+        .ytp-ce-channel-title,
+        .ytp-watermark,
+        .ytp-chrome-top-buttons,
+        .ytp-watch-later-button,
+        .ytp-watch-later,
+        .ytp-share-button,
+        .ytp-youtube-button,
+        .ytp-cards-teaser-text,
+        .iv-click-target,
+        .iv-drawer,
+        .annotation,
+        .annotation-popup,
+        .annotation-close-button,
+        .ytp-ce-element-show,
+        .ytp-ce-size-1280,
+        .ytp-ce-top-left-quad,
+        .ytp-ce-large-round,
+        .ytp-ce-medium-round,
+        .ytp-ce-small-round,
+        .ytp-ce-element-shadow,
+        .ytp-ce-expanding-overlay-background,
+        .ytp-ce-expanding-overlay,
+        .ytp-ce-element-hover,
+        .ytp-ce-expanding-image,
+        .ytp-ce-expanding-text,
+        .ytp-pause-overlay-container,
+        .ytp-related-on-error-overlay,
+        .ytp-autonav-endscreen-upnext-container,
+        .ytp-autonav-endscreen-upnext-header,
+        .ytp-autonav-endscreen-upnext-alternative-header,
+        .ytp-autonav-endscreen-upnext-alternative-button,
+        .ytp-autonav-endscreen-upnext-thumbnail,
+        .ytp-autonav-endscreen-upnext-title,
+        .ytp-autonav-endscreen-upnext-author,
+        .ytp-autonav-endscreen-upnext-duration,
+        .ytp-autonav-endscreen-upnext-button-container,
+        .ytp-autonav-endscreen-upnext-button,
+        .ytp-autonav-endscreen-upnext-cancel-button,
+        .ytp-upnext,
+        .videowall-endscreen,
+        .videowall-endscreen-post-content,
+        .videowall-endscreen-new-content {
             display: none !important;
             opacity: 0 !important;
             visibility: hidden !important;
+            width: 0 !important;
+            height: 0 !important;
+            position: absolute !important;
+            top: -9999px !important;
+            left: -9999px !important;
+            z-index: -9999 !important;
+            pointer-events: none !important;
         }
 
+        /* Bloquear overlays por seletor mais específico */
+        iframe[src*="youtube.com"] .ytp-ce-element,
+        iframe[src*="youtube.com"] .ytp-cards-teaser,
+        iframe[src*="youtube.com"] .ytp-endscreen-content,
+        iframe[src*="youtube.com"] .html5-endscreen {
+            display: none !important;
+        }
+
+        /* Ocultar qualquer elemento com 'more videos' ou similar */
+        *[aria-label*="More videos"],
+        *[title*="More videos"],
+        *[alt*="More videos"],
+        *[data-title*="More videos"],
+        .ytp-ce-element[aria-label*="video"],
+        .ytp-ce-element[title*="video"] {
+            display: none !important;
+            visibility: hidden !important;
+        }
 
     </style>
 </head>
@@ -558,19 +631,26 @@
 
         // Inicializar players
         function initializePlayers() {
-            // Parâmetros simples que funcionam
+            // Parâmetros otimizados para bloquear sugestões
             const playerVars = {
                 autoplay: 0,
                 controls: 0,
                 disablekb: 1,
                 enablejsapi: 1,
                 modestbranding: 1,
-                rel: 0,
+                rel: 0, // Não mostrar vídeos relacionados
                 showinfo: 0,
-                iv_load_policy: 3,
-                cc_load_policy: 0,
+                iv_load_policy: 3, // Não carregar anotações
+                cc_load_policy: 0, // Não mostrar legendas por padrão
                 fs: 1,
-                origin: window.location.origin
+                origin: window.location.origin,
+                // Parâmetros adicionais para bloquear sugestões
+                autohide: 1, // Ocultar controles automaticamente
+                theme: 'dark',
+                color: 'white',
+                hl: 'pt', // Idioma português
+                cc_lang_pref: 'pt', // Preferência de idioma para legendas
+                widget_referrer: window.location.href
             };
 
             try {
@@ -947,13 +1027,13 @@
                 if (playersReady < 2 || !isPlaying) return;
                 
                 try {
-                    // Verificar se algum vídeo está perto do final (últimos 8 segundos - mais agressivo)
+                    // Verificar se algum vídeo está perto do final (últimos 10 segundos - muito agressivo)
                     const player1Duration = players.player1.getDuration();
                     const player1Current = players.player1.getCurrentTime();
                     const player2Duration = players.player2.getDuration();
                     const player2Current = players.player2.getCurrentTime();
                     
-                    const threshold = 8; // segundos antes do final (aumentado de 5 para 8)
+                    const threshold = 10; // segundos antes do final (aumentado para 10)
                     
                     if ((player1Duration - player1Current) <= threshold || 
                         (player2Duration - player2Current) <= threshold) {
@@ -962,20 +1042,13 @@
                         players.player1.pauseVideo();
                         players.player2.pauseVideo();
                         
-                        // Forçar pausa manual no mobile
-                        if (isMobile) {
-                            isPlaying = false;
-                            document.body.classList.remove('playing');
-                            document.getElementById('playPause').innerHTML = '▶️ Play';
-                        }
-                        
                         updateStatus('⏸️ Pausado automaticamente antes do final para evitar sugestões - Use Reset para reiniciar');
                         stopProgressMonitoring();
                     }
                 } catch (error) {
                     // Ignorar erros de monitoramento
                 }
-            }, 500); // Verificar a cada 500ms (mais frequente)
+            }, 250); // Verificar a cada 250ms (mais frequente ainda)
         }
 
         function stopProgressMonitoring() {
@@ -984,6 +1057,55 @@
                 progressMonitor = null;
             }
         }
+
+        // Função para remover sugestões dinamicamente
+        function removeSuggestions() {
+            const suggestionsSelectors = [
+                '.ytp-ce-element',
+                '.ytp-cards-teaser',
+                '.ytp-endscreen-content',
+                '.ytp-show-cards-title',
+                '.ytp-ce-video',
+                '.ytp-pause-overlay',
+                '.ytp-upnext',
+                '.ytp-videowall-still',
+                '.ytp-suggestion-set',
+                '.html5-endscreen',
+                '.ytp-autonav-endscreen-upnext-container',
+                '.videowall-endscreen',
+                '[aria-label*="More videos"]',
+                '[title*="More videos"]'
+            ];
+
+            // Remover elementos de ambos os players
+            [players.player1, players.player2].forEach((player, index) => {
+                if (!player || !player.getIframe) return;
+                
+                try {
+                    const iframe = player.getIframe();
+                    if (!iframe || !iframe.contentDocument) return;
+                    
+                    const iframeDoc = iframe.contentDocument;
+                    
+                    suggestionsSelectors.forEach(selector => {
+                        const elements = iframeDoc.querySelectorAll(selector);
+                        elements.forEach(el => {
+                            if (el) {
+                                el.style.display = 'none !important';
+                                el.style.visibility = 'hidden !important';
+                                el.style.opacity = '0 !important';
+                                el.remove();
+                            }
+                        });
+                    });
+                } catch (error) {
+                    // Ignorar erros de acesso cross-origin
+                }
+            });
+        }
+
+        // Executar remoção de sugestões periodicamente
+        setInterval(removeSuggestions, 1000);
 
         // Inicializar
         loadYouTubeAPI();
