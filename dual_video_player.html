@@ -684,7 +684,8 @@
                 }
                 
             } else if (state === YT.PlayerState.PAUSED) {
-                if (isPlaying) {
+                // Só atualizar para pausado se não estivermos fazendo reset
+                if (isPlaying && !isSeeking) {
                     isPlaying = false;
                     document.body.classList.remove('playing');
                     document.getElementById('playPause').innerHTML = '▶️ Play';
@@ -906,9 +907,17 @@
                 players.player1.pauseVideo();
                 players.player2.pauseVideo();
                 
+                // Resetar estado global imediatamente
+                isPlaying = false;
+                document.body.classList.remove('playing');
+                stopProgressMonitoring();
+                
                 setTimeout(() => {
                     players.player1.seekTo(0, true);
                     players.player2.seekTo(0, true);
+                    
+                    // Garantir que o botão esteja no estado correto
+                    document.getElementById('playPause').innerHTML = '▶️ Play';
                     
                     updateStatus('🔄 Vídeos resetados - Prontos para reproduzir');
                     
@@ -920,6 +929,10 @@
             } catch (error) {
                 updateStatus('❌ Erro ao resetar vídeos: ' + error.message, 'error');
                 isSeeking = false;
+                // Garantir estado correto mesmo em erro
+                isPlaying = false;
+                document.body.classList.remove('playing');
+                document.getElementById('playPause').innerHTML = '▶️ Play';
             }
         }
 
